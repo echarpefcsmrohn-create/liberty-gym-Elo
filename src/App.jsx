@@ -465,10 +465,6 @@ export default function App() {
               })}
             </div>
 
-            <div style={S.loadMotivation}>
-              {loadStep >= 3 && <span>"{getDailyMotivation()}"</span>}
-            </div>
-
             <div style={S.loadBarWrap}>
               <div style={{...S.loadBar, width: loadStep === -1 ? "66%" : `${Math.min(100, (Math.max(0,loadStep-1)) / 3 * 100)}%`, background: loadStep === -1 ? "#f44" : "#e8ff3b"}} />
             </div>
@@ -515,6 +511,9 @@ export default function App() {
                 <div style={S.qs}><span style={S.qsV}>{totalSessions}</span><span style={S.qsL}>séances</span></div>
                 <div style={S.qs}><span style={S.qsV}>{totalEx}</span><span style={S.qsL}>exercices</span></div>
                 <div style={S.qs}><span style={S.qsV}>{allCardio}</span><span style={S.qsL}>min cardio</span></div>
+              </div>
+              <div style={S.motivBox}>
+                <span style={S.motivText}>"{getDailyMotivation()}"</span>
               </div>
               <button style={S.startBtn} onClick={() => setView("session")}>DÉMARRER LA SÉANCE</button>
             </div>
@@ -908,4 +907,6 @@ const S = {
   loadBarWrap:{ width:"100%", height:4, background:"#1e1e1e", borderRadius:4, overflow:"hidden" },
   loadBar:{ height:"100%", borderRadius:4, transition:"width 0.6s ease, background 0.3s" },
   loadMotivation:{ minHeight:40, textAlign:"center", fontSize:12, color:"#e8ff3b", fontStyle:"italic", lineHeight:1.6, padding:"0 10px", transition:"opacity 0.5s" },
+  motivBox:{ background:"rgba(232,255,59,0.08)", border:"1px solid rgba(232,255,59,0.25)", borderRadius:10, padding:"14px 16px", marginBottom:20, width:"100%" },
+  motivText:{ fontSize:12, color:"#e8ff3b", fontStyle:"italic", lineHeight:1.7 },
 };
