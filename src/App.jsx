@@ -310,6 +310,26 @@ const HISTORY_DATA = [
   ]},
 ];
 
+const MOTIVATIONS = [
+  "Chaque séance te rapproche de la meilleure version de toi 💪",
+  "La douleur d'aujourd'hui, c'est la force de demain ⚡",
+  "Tu n'as jamais regretté une séance. Go ! 🔥",
+  "Les résultats arrivent à celles qui ne lâchent pas 🏆",
+  "Ton seul adversaire, c'est toi d'hier 👊",
+  "Une séance de plus, une fierté de plus ✨",
+  "Le corps accomplit ce que l'esprit décide 🧠",
+  "Pas d'excuses, juste des résultats 💥",
+  "Tu es plus forte que tu ne le crois 🌟",
+  "Aujourd'hui on transpire, demain on brille 😎",
+  "Chaque rep compte. Chaque minute compte ⏱",
+  "La régularité bat la perfection. T'es là, c'est déjà gagné 🎯",
+];
+
+const getDailyMotivation = () => {
+  const day = new Date().getDay() + new Date().getDate();
+  return MOTIVATIONS[day % MOTIVATIONS.length];
+};
+
 const formatTime = (sec) => `${Math.floor(sec/60).toString().padStart(2,"0")}:${(sec%60).toString().padStart(2,"0")}`;
 const formatDate = (iso) => new Date(iso).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 const displayDate = (s) => s.noDate ? s.lieu : formatDate(s.date);
@@ -443,6 +463,10 @@ export default function App() {
                   </div>
                 );
               })}
+            </div>
+
+            <div style={S.loadMotivation}>
+              {loadStep >= 3 && <span>"{getDailyMotivation()}"</span>}
             </div>
 
             <div style={S.loadBarWrap}>
@@ -883,4 +907,5 @@ const S = {
   loadSpinner:{ marginLeft:"auto", fontSize:14 },
   loadBarWrap:{ width:"100%", height:4, background:"#1e1e1e", borderRadius:4, overflow:"hidden" },
   loadBar:{ height:"100%", borderRadius:4, transition:"width 0.6s ease, background 0.3s" },
+  loadMotivation:{ minHeight:40, textAlign:"center", fontSize:12, color:"#e8ff3b", fontStyle:"italic", lineHeight:1.6, padding:"0 10px", transition:"opacity 0.5s" },
 };
