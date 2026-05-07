@@ -400,6 +400,10 @@ export default function App() {
   const [sessionStart] = useState(Date.now());
   const [filterLieu, setFilterLieu] = useState("Tous");
   const [exSearch, setExSearch] = useState("");
+  const [editingSession, setEditingSession] = useState(null); // null | session object
+  const [sessionDate, setSessionDate] = useState(() => new Date().toISOString().slice(0,10));
+  const [sessionLieu, setSessionLieu] = useState("Liberty Gym");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [showTuto, setShowTuto] = useState(() => {
     try { return localStorage.getItem("elodie-tuto-seen") !== "true"; } catch { return true; }
   });
@@ -416,10 +420,44 @@ export default function App() {
   const toggleType = (ei) => setSessionExercises(p => { const c=[...p]; c[ei]={...c[ei],type:c[ei].type==="reps"?"time":"reps"}; return c; });
 
   const finishSession = () => {
-    const s = { id: Date.now(), date: new Date().toISOString(), lieu: "Liberty Gym", noDate: true, duration: Math.floor((Date.now()-sessionStart)/1000), exercises: sessionExercises };
-    saveHistory(s);
-    setSelectedSession(s);
+    if (editingSession) {
+      const updated = { ...editingSession, exercises: sessionExercises, date: sessionDate + "T10:00:00", lieu: sessionLieu, noDate: false };
+      const newHist = history.map(s => s.id === editingSession.id ? updated : s);
+      setHistory(newHist);
+      try { localStorage.setItem("elodie-gym-history", JSON.stringify(newHist)); } catch {}
+      saveSession(updated);
+      setSelectedSession(updated);
+    } else {
+      const s = { id: Date.now(), date: sessionDate + "T10:00:00", lieu: sessionLieu, noDate: false, duration: Math.floor((Date.now()-sessionStart)/1000), exercises: sessionExercises };
+      saveHistory(s);
+      setSelectedSession(s);
+    }
+    setEditingSession(null);
     setView("report");
+  };
+
+  const deleteSession = (id) => {
+    const newHist = history.filter(s => s.id !== id);
+    setHistory(newHist);
+    try { localStorage.setItem("elodie-gym-history", JSON.stringify(newHist)); } catch {}
+    setConfirmDelete(false);
+    setView("history");
+  };
+
+  const startEditSession = (session) => {
+    setEditingSession(session);
+    setSessionExercises(session.exercises);
+    setSessionDate(session.date ? session.date.slice(0,10) : new Date().toISOString().slice(0,10));
+    setSessionLieu(session.lieu || "Liberty Gym");
+    setView("session");
+  };
+
+  const startNewSession = () => {
+    setEditingSession(null);
+    setSessionExercises([]);
+    setSessionDate(new Date().toISOString().slice(0,10));
+    setSessionLieu("Liberty Gym");
+    setView("session");
   };
 
   const lieux = ["Tous", ...Array.from(new Set(history.map(s => s.lieu)))];
@@ -515,7 +553,7 @@ export default function App() {
               <div style={S.motivBox}>
                 <span style={S.motivText}>"{getDailyMotivation()}"</span>
               </div>
-              <button style={S.startBtn} onClick={() => setView("session")}>DÉMARRER LA SÉANCE</button>
+              <button style={S.startBtn} onClick={startNewSession}>DÉMARRER LA SÉANCE</button>
             </div>
           </div>
         )}
@@ -568,8 +606,13 @@ export default function App() {
             <div style={S.log}>
               <div style={S.logHeader}>
                 <div>
-                  <div style={S.sectionLabel}>MA SÉANCE</div>
+                  {editingSession && <div style={S.editBanner}>✏️ Modification d'une séance</div>}
+              <div style={S.sectionLabel}>MA SÉANCE</div>
                   <div style={S.exerciseCount}>{sessionExercises.length} exercice{sessionExercises.length!==1?"s":""}</div>
+                  <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
+                    <input type="date" style={S.dateInput} value={sessionDate} onChange={e=>setSessionDate(e.target.value)} />
+                    <input type="text" style={S.dateInput} placeholder="Lieu" value={sessionLieu} onChange={e=>setSessionLieu(e.target.value)} />
+                  </div>
                 </div>
                 {sessionExercises.length > 0 && <button style={S.finishBtn} onClick={finishSession}>{saving ? "SAUVEGARDE..." : "TERMINER ✓"}</button>}
               </div>
@@ -669,6 +712,24 @@ export default function App() {
                 <div style={S.statBox}><div style={S.statVal}>{totalCardioMin(selectedSession.exercises)} min</div><div style={S.statLbl}>Cardio</div></div>
               </div>
               <ExerciseList exercises={selectedSession.exercises} />
+
+              {/* Edit / Delete */}
+              {!selectedSession.noDate && (
+                <div style={{display:"flex",gap:8,marginTop:20}}>
+                  <button style={S.historyBtn} onClick={() => startEditSession(selectedSession)}>✏️ Modifier</button>
+                  <button style={{...S.historyBtn, color:"#ff4646", borderColor:"#ff464640"}} onClick={() => setConfirmDelete(true)}>🗑 Supprimer</button>
+                </div>
+              )}
+
+              {confirmDelete && (
+                <div style={S.confirmBox}>
+                  <p style={{margin:"0 0 12px",fontSize:13}}>Supprimer cette séance définitivement ?</p>
+                  <div style={{display:"flex",gap:8}}>
+                    <button style={S.historyBtn} onClick={() => setConfirmDelete(false)}>Annuler</button>
+                    <button style={{...S.newSessionBtn, background:"#ff4646"}} onClick={() => deleteSession(selectedSession.id)}>Supprimer</button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -907,6 +968,9 @@ const S = {
   loadBarWrap:{ width:"100%", height:4, background:"#1e1e1e", borderRadius:4, overflow:"hidden" },
   loadBar:{ height:"100%", borderRadius:4, transition:"width 0.6s ease, background 0.3s" },
   loadMotivation:{ minHeight:40, textAlign:"center", fontSize:12, color:"#e8ff3b", fontStyle:"italic", lineHeight:1.6, padding:"0 10px", transition:"opacity 0.5s" },
-  motivBox:{ background:"rgba(232,255,59,0.08)", border:"1px solid rgba(232,255,59,0.25)", borderRadius:10, padding:"14px 16px", marginBottom:20, width:"100%" },
+  motivBox:{ background:"rgba(232,255,59,0.08)", border:"1px solid rgba(232,255,59,0.25)", borderRadius:10, padding:"14px 16px", marginBottom:20, width:"100%", boxSizing:"border-box", textAlign:"center" },
   motivText:{ fontSize:12, color:"#e8ff3b", fontStyle:"italic", lineHeight:1.7 },
+  editBanner:{ background:"rgba(232,255,59,0.12)", border:"1px solid rgba(232,255,59,0.3)", borderRadius:6, padding:"6px 12px", fontSize:10, color:"#e8ff3b", letterSpacing:"0.1em", marginBottom:10, textAlign:"center" },
+  dateInput:{ background:"#1a1a1a", border:"1px solid #272727", borderRadius:5, color:"#f0f0f0", fontFamily:"inherit", fontSize:11, padding:"5px 8px", outline:"none" },
+  confirmBox:{ background:"rgba(255,70,70,0.08)", border:"1px solid rgba(255,70,70,0.3)", borderRadius:8, padding:"16px", marginTop:12 },
 };
