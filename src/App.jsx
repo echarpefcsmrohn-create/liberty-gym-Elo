@@ -20,7 +20,7 @@ const saveSession = async (session) => {
 };
 
 const EXERCISES = {
-  "Cardio": ["Marche inclinée", "Vélo elliptique", "Vélo stationnaire", "Rameur", "Escalier", "Course", "Tapis de course"],
+  "Cardio": ["Marche inclinée", "Vélo elliptique", "Vélo stationnaire", "Rameur", "Escalier", "Course", "Tapis de course", "Marche", "Randonnée"],
   "Jambes": ["Presse", "Squat barre", "Squat sangle", "Leg Curl", "Leg Extension", "Fentes", "Hip Trust", "Exos Océane"],
   "Hanches / Fessiers": ["Hip Abducteur", "Hip Adducteur", "Glute machine", "Glute traîner"],
   "Dos": ["Tirage vertical", "Lat Pulldown", "Machine Tanguy", "Machine en face Tanguy", "Rameur machine"],
