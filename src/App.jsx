@@ -19,6 +19,13 @@ const saveSession = async (session) => {
   await sbFetch("/sessions", { method: "POST", body: JSON.stringify({ data: session }) });
 };
 
+const DISTANCE_EXERCISES = ["Marche inclinée", "Marche", "Randonnée", "Course", "Tapis de course", "Vélo stationnaire", "Vélo elliptique"];
+
+const calcSpeed = (duration, distance) => {
+  if (!duration || !distance || parseFloat(duration) === 0) return null;
+  return (parseFloat(distance) / (parseFloat(duration) / 60)).toFixed(1);
+};
+
 const EXERCISES = {
   "Cardio": ["Marche inclinée", "Vélo elliptique", "Vélo stationnaire", "Rameur", "Escalier", "Course", "Tapis de course", "Marche", "Randonnée"],
   "Jambes": ["Presse", "Squat barre", "Squat sangle", "Leg Curl", "Leg Extension", "Fentes", "Hip Trust", "Exos Océane"],
@@ -350,7 +357,7 @@ function ExerciseList({ exercises }) {
               <span key={j} style={S.reportSetTag}>
                 {ex.type === "reps"
                   ? `${s.reps||0} rép${s.weight ? ` × ${s.weight} kg` : ""}`
-                  : `${s.duration||0} min${s.notes ? ` · ${s.notes}` : ""}`}
+                  : `${s.duration||0} min${s.distance ? ` · ${s.distance} km` : ""}${s.distance && s.duration ? ` · ⚡${calcSpeed(s.duration,s.distance)} km/h` : ""}${s.notes ? ` · ${s.notes}` : ""}`}
               </span>
             ))}
           </div>
@@ -630,14 +637,27 @@ export default function App() {
                         </div>
                         <div style={S.setsHeader}>
                           <span style={{flex:"0 0 38px",textAlign:"center"}}>Série</span>
-                          {ex.type==="reps"?<><span style={{flex:1,textAlign:"center"}}>Rép.</span><span style={{flex:1,textAlign:"center"}}>Poids (kg)</span></> : <span style={{flex:1,textAlign:"center"}}>Durée (min)</span>}
+                          {ex.type==="reps"?<><span style={{flex:1,textAlign:"center"}}>Rép.</span><span style={{flex:1,textAlign:"center"}}>Poids (kg)</span></> : <>
+                            <span style={{flex:1,textAlign:"center"}}>Durée (min)</span>
+                            {DISTANCE_EXERCISES.includes(ex.name) && <span style={{flex:1,textAlign:"center"}}>Distance</span>}
+                          </>}
                         </div>
                         {ex.sets.map((set, si) => (
                           <div key={si} style={S.setRow}>
                             <span style={S.setNum}>{si+1}</span>
                             {ex.type==="reps"
                               ? <><input style={S.setInput} type="number" placeholder="0" value={set.reps} onChange={e => updateSet(ei,si,"reps",e.target.value)} /><input style={S.setInput} type="number" placeholder="0" value={set.weight} onChange={e => updateSet(ei,si,"weight",e.target.value)} /></>
-                              : <input style={{...S.setInput,flex:1}} type="number" placeholder="0" value={set.duration} onChange={e => updateSet(ei,si,"duration",e.target.value)} />}
+                              : <>
+                                  <input style={{...S.setInput,flex:1}} type="number" placeholder="0 min" value={set.duration} onChange={e => updateSet(ei,si,"duration",e.target.value)} />
+                                  {DISTANCE_EXERCISES.includes(ex.name) && (
+                                    <div style={{flex:1,display:"flex",flexDirection:"column",gap:2}}>
+                                      <input style={{...S.setInput,width:"100%",boxSizing:"border-box"}} type="number" placeholder="km (optionnel)" value={set.distance||""} onChange={e => updateSet(ei,si,"distance",e.target.value)} />
+                                      {calcSpeed(set.duration, set.distance) && (
+                                        <span style={{fontSize:9,color:"#e8ff3b",textAlign:"center"}}>⚡ {calcSpeed(set.duration, set.distance)} km/h moy.</span>
+                                      )}
+                                    </div>
+                                  )}
+                                </>}
                           </div>
                         ))}
                         <button style={S.addSetBtn} onClick={() => addSet(ei)}>+ Ajouter une série</button>
