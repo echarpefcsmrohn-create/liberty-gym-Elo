@@ -385,7 +385,18 @@ export default function App() {
         const rows = await loadSessions();
         await new Promise(r => setTimeout(r, 600));
         setLoadStep(3);
-        if (rows && rows.length > 0) setHistory([...HISTORY_DATA, ...rows]);
+        // Load deleted IDs from localStorage to not show deleted imported sessions
+        let deletedIds = [];
+        try {
+          const saved = localStorage.getItem("elodie-gym-history");
+          if (saved) {
+            const savedIds = new Set(JSON.parse(saved).map(s => s.id));
+            deletedIds = HISTORY_DATA.filter(s => !savedIds.has(s.id)).map(s => s.id);
+          }
+        } catch {}
+        const filteredBase = HISTORY_DATA.filter(s => !deletedIds.includes(s.id));
+        if (rows && rows.length > 0) setHistory([...filteredBase, ...rows]);
+        else if (deletedIds.length > 0) setHistory(filteredBase);
         await new Promise(r => setTimeout(r, 800));
         setLoadStep(4);
       } catch {
@@ -399,7 +410,9 @@ export default function App() {
 
   const saveHistory = async (session) => {
     setSaving(true);
-    setHistory(prev => [session, ...prev]);
+    const newHist = [session, ...history];
+    setHistory(newHist);
+    try { localStorage.setItem("elodie-gym-history", JSON.stringify(newHist)); } catch {}
     await saveSession(session);
     setSaving(false);
   };
@@ -443,11 +456,14 @@ export default function App() {
     setView("report");
   };
 
-  const deleteSession = (id) => {
+  const deleteSession = async (id) => {
     const newHist = history.filter(s => s.id !== id);
     setHistory(newHist);
     try { localStorage.setItem("elodie-gym-history", JSON.stringify(newHist)); } catch {}
+    // Delete from Supabase
+    try { await sbFetch(`/sessions?data->>id=eq.${id}`, { method: "DELETE" }); } catch {}
     setConfirmDelete(false);
+    setSelectedSession(null);
     setView("history");
   };
 
@@ -468,7 +484,7 @@ export default function App() {
   };
 
   const lieux = ["Tous", ...Array.from(new Set(history.map(s => s.lieu)))];
-  const filteredHistory = filterLieu === "Tous" ? history : history.filter(s => s.lieu === filterLieu);
+  const filteredHistory = (filterLieu === "Tous" ? history : history.filter(s => s.lieu === filterLieu)).slice().sort((a,b) => new Date(b.date) - new Date(a.date));
   const totalSessions = history.length;
   const allCardio = history.reduce((a,s) => a + totalCardioMin(s.exercises), 0);
   const totalEx = history.reduce((a,s) => a + s.exercises.length, 0);
