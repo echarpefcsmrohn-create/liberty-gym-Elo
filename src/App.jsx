@@ -20,6 +20,7 @@ const saveSession = async (session) => {
 };
 
 const DISTANCE_EXERCISES = ["Marche inclinée", "Marche", "Randonnée", "Course", "Tapis de course", "Vélo stationnaire", "Vélo elliptique"];
+const INCLINE_EXERCISES = ["Marche inclinée", "Tapis de course"];
 
 const calcSpeed = (duration, distance) => {
   if (!duration || !distance || parseFloat(duration) === 0) return null;
@@ -357,7 +358,7 @@ function ExerciseList({ exercises }) {
               <span key={j} style={S.reportSetTag}>
                 {ex.type === "reps"
                   ? `${s.reps||0} rép${s.weight ? ` × ${s.weight} kg` : ""}`
-                  : `${s.duration||0} min${s.distance ? ` · ${s.distance} km` : ""}${s.distance && s.duration ? ` · ⚡${calcSpeed(s.duration,s.distance)} km/h` : ""}${s.notes ? ` · ${s.notes}` : ""}`}
+                  : `${s.duration||0} min${s.incline ? ` · incl. ${s.incline}` : ""}${s.distance ? ` · ${s.distance} km` : ""}${s.distance && s.duration ? ` · ⚡${calcSpeed(s.duration,s.distance)} km/h` : ""}${s.notes ? ` · ${s.notes}` : ""}`}
               </span>
             ))}
           </div>
@@ -420,6 +421,7 @@ export default function App() {
   const [sessionStart] = useState(Date.now());
   const [filterLieu, setFilterLieu] = useState("Tous");
   const [exSearch, setExSearch] = useState("");
+  const [sessionTab, setSessionTab] = useState("picker"); // picker | log
   const [editingSession, setEditingSession] = useState(null); // null | session object
   const [sessionDate, setSessionDate] = useState(() => new Date().toISOString().slice(0,10));
   const [sessionLieu, setSessionLieu] = useState("Liberty Gym");
@@ -583,109 +585,111 @@ export default function App() {
 
         {/* SESSION */}
         {view === "session" && (
-          <div style={S.sessionLayout}>
-            <div style={S.picker}>
-              <input
-                style={S.searchInput}
-                type="text"
-                placeholder="🔍 Rechercher un exercice..."
-                value={exSearch}
-                onChange={e => setExSearch(e.target.value)}
-              />
-              {exSearch.trim() === "" ? (
-                <>
-                  <div style={S.sectionLabel}>CATÉGORIE</div>
-                  <div style={S.catList}>
-                    {Object.keys(EXERCISES).map(cat => (
-                      <button key={cat} style={{...S.catBtn,...(activeCategory===cat?S.catActive:{})}} onClick={() => setActiveCategory(cat)}>{cat}</button>
-                    ))}
-                  </div>
-                  <div style={{...S.sectionLabel, marginTop:18}}>EXERCICES</div>
-                  <div style={S.exList}>
-                    {EXERCISES[activeCategory].map(ex => (
-                      <button key={ex} style={S.exBtn} onClick={() => addExercise(ex)}>+ {ex}</button>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div style={S.sectionLabel}>RÉSULTATS</div>
-                  <div style={S.exList}>
-                    {Object.entries(EXERCISES).flatMap(([cat, exs]) =>
-                      exs.filter(ex => ex.toLowerCase().includes(exSearch.toLowerCase())).map(ex => (
-                        <button key={cat+ex} style={S.exBtnSearch} onClick={() => { setActiveCategory(cat); addExercise(ex); }}>
-                          <span style={{color:"#e8ff3b",fontSize:8,letterSpacing:"0.1em"}}>{cat}</span>
-                          <span>+ {ex}</span>
-                        </button>
-                      ))
-                    )}
-                    {Object.values(EXERCISES).flat().filter(ex => ex.toLowerCase().includes(exSearch.toLowerCase())).length === 0 && (
-                      <div style={{color:"#888",fontSize:11,padding:"12px 0",textAlign:"center"}}>Aucun résultat</div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-            <div style={S.log}>
-              <div style={S.logHeader}>
-                <div>
-                  {editingSession && <div style={S.editBanner}>✏️ Modification d'une séance</div>}
-              <div style={S.sectionLabel}>MA SÉANCE</div>
-                  <div style={S.exerciseCount}>{sessionExercises.length} exercice{sessionExercises.length!==1?"s":""}</div>
-                  <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
-                    <input type="date" style={S.dateInput} value={sessionDate} onChange={e=>setSessionDate(e.target.value)} />
-                    <input type="text" style={S.dateInput} placeholder="Lieu" value={sessionLieu} onChange={e=>setSessionLieu(e.target.value)} />
-                  </div>
+          <div style={S.sessionMobile}>
+            <div style={S.sessionTopBar}>
+              <div style={{display:"flex",flexDirection:"column",gap:5,flex:1,minWidth:0}}>
+                {editingSession && <div style={S.editBanner}>✏️ Modification</div>}
+                <div style={{display:"flex",gap:6}}>
+                  <input type="date" style={{...S.dateInput,flex:1,minWidth:0}} value={sessionDate} onChange={e=>setSessionDate(e.target.value)} />
+                  <input type="text" style={{...S.dateInput,flex:1,minWidth:0}} placeholder="Lieu" value={sessionLieu} onChange={e=>setSessionLieu(e.target.value)} />
+                  {sessionExercises.length > 0 && <button style={S.finishBtn} onClick={finishSession}>{saving ? "..." : "TERMINER ✓"}</button>}
                 </div>
-                {sessionExercises.length > 0 && <button style={S.finishBtn} onClick={finishSession}>{saving ? "SAUVEGARDE..." : "TERMINER ✓"}</button>}
               </div>
-              {sessionExercises.length === 0
-                ? <div style={S.emptyLog}><span style={{fontSize:36}}>👈</span><p>Sélectionne un exercice à gauche</p></div>
-                : <div style={S.exCards}>
-                    {sessionExercises.map((ex, ei) => (
-                      <div key={ex.id} style={S.exCard}>
-                        <div style={S.exCardHeader}>
-                          <div><div style={S.exCardCat}>{ex.category}</div><div style={S.exCardName}>{ex.name}</div></div>
-                          <div style={S.exCardActions}>
-                            <button style={S.typeToggle} onClick={() => toggleType(ei)}>{ex.type==="reps"?"⏱ Temps":"🔄 Rép."}</button>
-                            <button style={S.removeBtn} onClick={() => removeExercise(ei)}>✕</button>
-                          </div>
-                        </div>
-                        <div style={S.setsHeader}>
-                          <span style={{flex:"0 0 38px",textAlign:"center"}}>Série</span>
-                          {ex.type==="reps"?<><span style={{flex:1,textAlign:"center"}}>Rép.</span><span style={{flex:1,textAlign:"center"}}>Poids (kg)</span></> : <>
-                            <span style={{flex:1,textAlign:"center"}}>Durée (min)</span>
-                            {DISTANCE_EXERCISES.includes(ex.name) && <span style={{flex:1,textAlign:"center"}}>Distance</span>}
-                          </>}
-                        </div>
-                        {ex.sets.map((set, si) => (
-                          <div key={si} style={S.setRow}>
-                            <span style={S.setNum}>{si+1}</span>
-                            {ex.type==="reps"
-                              ? <><input style={S.setInput} type="number" placeholder="0" value={set.reps} onChange={e => updateSet(ei,si,"reps",e.target.value)} /><input style={S.setInput} type="number" placeholder="0" value={set.weight} onChange={e => updateSet(ei,si,"weight",e.target.value)} /></>
-                              : <>
-                                  <input style={{...S.setInput,flex:1}} type="number" placeholder="0 min" value={set.duration} onChange={e => updateSet(ei,si,"duration",e.target.value)} />
-                                  {DISTANCE_EXERCISES.includes(ex.name) && (
-                                    <div style={{flex:1,display:"flex",flexDirection:"column",gap:2}}>
-                                      <input style={{...S.setInput,width:"100%",boxSizing:"border-box"}} type="number" placeholder="km (optionnel)" value={set.distance||""} onChange={e => updateSet(ei,si,"distance",e.target.value)} />
-                                      {calcSpeed(set.duration, set.distance) && (
-                                        <span style={{fontSize:9,color:"#e8ff3b",textAlign:"center"}}>⚡ {calcSpeed(set.duration, set.distance)} km/h moy.</span>
-                                      )}
-                                    </div>
-                                  )}
-                                </>}
-                          </div>
-                        ))}
-                        <button style={S.addSetBtn} onClick={() => addSet(ei)}>+ Ajouter une série</button>
-                      </div>
-                    ))}
-                  </div>
-              }
             </div>
+            <div style={S.sessionTabs}>
+              <button style={{...S.sessionTabBtn,...(sessionTab==="picker"?S.sessionTabActive:{})}} onClick={() => setSessionTab("picker")}>+ AJOUTER</button>
+              <button style={{...S.sessionTabBtn,...(sessionTab==="log"?S.sessionTabActive:{})}} onClick={() => setSessionTab("log")}>
+                MA SÉANCE {sessionExercises.length > 0 && <span style={S.tabBadge}>{sessionExercises.length}</span>}
+              </button>
+            </div>
+            {sessionTab === "picker" && (
+              <div style={S.pickerMobile}>
+                <input style={S.searchInput} type="text" placeholder="🔍 Rechercher un exercice..." value={exSearch} onChange={e => setExSearch(e.target.value)} />
+                {exSearch.trim() === "" ? (
+                  <>
+                    <div style={{...S.sectionLabel, marginBottom:8}}>CATÉGORIE</div>
+                    <div style={S.catListH}>
+                      {Object.keys(EXERCISES).map(cat => (
+                        <button key={cat} style={{...S.catBtnH,...(activeCategory===cat?S.catActive:{})}} onClick={() => setActiveCategory(cat)}>{cat}</button>
+                      ))}
+                    </div>
+                    <div style={{...S.sectionLabel, marginTop:16, marginBottom:8}}>EXERCICES</div>
+                    <div style={S.exList}>
+                      {EXERCISES[activeCategory].map(ex => (
+                        <button key={ex} style={S.exBtn} onClick={() => { addExercise(ex); setSessionTab("log"); }}>+ {ex}</button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={S.sectionLabel}>RÉSULTATS</div>
+                    <div style={S.exList}>
+                      {Object.entries(EXERCISES).flatMap(([cat, exs]) =>
+                        exs.filter(ex => ex.toLowerCase().includes(exSearch.toLowerCase())).map(ex => (
+                          <button key={cat+ex} style={S.exBtnSearch} onClick={() => { setActiveCategory(cat); addExercise(ex); setSessionTab("log"); }}>
+                            <span style={{color:"#e8ff3b",fontSize:8,letterSpacing:"0.1em"}}>{cat}</span>
+                            <span>+ {ex}</span>
+                          </button>
+                        ))
+                      )}
+                      {Object.values(EXERCISES).flat().filter(ex => ex.toLowerCase().includes(exSearch.toLowerCase())).length === 0 && (
+                        <div style={{color:"#888",fontSize:11,padding:"12px 0",textAlign:"center"}}>Aucun résultat</div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            {sessionTab === "log" && (
+              <div style={S.logMobile}>
+                {sessionExercises.length === 0
+                  ? <div style={S.emptyLog}><span style={{fontSize:36}}>👆</span><p>Va dans "+ AJOUTER" pour choisir un exercice</p></div>
+                  : <div style={S.exCards}>
+                      {sessionExercises.map((ex, ei) => (
+                        <div key={ex.id} style={S.exCard}>
+                          <div style={S.exCardHeader}>
+                            <div><div style={S.exCardCat}>{ex.category}</div><div style={S.exCardName}>{ex.name}</div></div>
+                            <div style={S.exCardActions}>
+                              <button style={S.typeToggle} onClick={() => toggleType(ei)}>{ex.type==="reps"?"⏱ Temps":"🔄 Rép."}</button>
+                              <button style={S.removeBtn} onClick={() => removeExercise(ei)}>✕</button>
+                            </div>
+                          </div>
+                          <div style={S.setsHeader}>
+                            <span style={{flex:"0 0 38px",textAlign:"center"}}>Série</span>
+                            {ex.type==="reps"?<><span style={{flex:1,textAlign:"center"}}>Rép.</span><span style={{flex:1,textAlign:"center"}}>Poids (kg)</span></> : <span style={{flex:1,textAlign:"center"}}>Détails</span>}
+                          </div>
+                          {ex.sets.map((set, si) => (
+                            <div key={si} style={S.setRow}>
+                              <span style={S.setNum}>{si+1}</span>
+                              {ex.type==="reps"
+                                ? <><input style={{...S.setInput,minWidth:0}} type="number" placeholder="0" value={set.reps} onChange={e => updateSet(ei,si,"reps",e.target.value)} /><input style={{...S.setInput,minWidth:0}} type="number" placeholder="0" value={set.weight} onChange={e => updateSet(ei,si,"weight",e.target.value)} /></>
+                                : <div style={{flex:1,display:"flex",flexDirection:"column",gap:6}}>
+                                    <input style={{...S.setInput,width:"100%",boxSizing:"border-box"}} type="number" placeholder="Durée (min)" value={set.duration} onChange={e => updateSet(ei,si,"duration",e.target.value)} />
+                                    {INCLINE_EXERCISES.includes(ex.name) && (
+                                      <input style={{...S.setInput,width:"100%",boxSizing:"border-box"}} type="number" placeholder="Inclinaison (ex: 8.5)" value={set.incline||""} onChange={e => updateSet(ei,si,"incline",e.target.value)} />
+                                    )}
+                                    {DISTANCE_EXERCISES.includes(ex.name) && (
+                                      <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                                        <input style={{...S.setInput,width:"100%",boxSizing:"border-box"}} type="number" placeholder="Distance km (optionnel)" value={set.distance||""} onChange={e => updateSet(ei,si,"distance",e.target.value)} />
+                                        {calcSpeed(set.duration, set.distance) && (
+                                          <span style={{fontSize:9,color:"#e8ff3b",textAlign:"center"}}>⚡ {calcSpeed(set.duration, set.distance)} km/h moy.</span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>}
+                            </div>
+                          ))}
+                          <button style={S.addSetBtn} onClick={() => addSet(ei)}>+ Ajouter une série</button>
+                        </div>
+                      ))}
+                    </div>
+                }
+              </div>
+            )}
           </div>
         )}
 
-        {/* RAPPORT */}
+                {/* RAPPORT */}
         {view === "report" && selectedSession && (
           <div style={S.reportWrap}>
             <div style={S.reportCard}>
@@ -917,6 +921,16 @@ const S = {
   qsL:{ fontSize:9, color:C.muted, letterSpacing:"0.1em" },
   startBtn:{ background:C.accent, color:C.black, border:"none", borderRadius:8, padding:"13px 28px", fontFamily:"inherit", fontWeight:700, fontSize:12, letterSpacing:"0.1em", cursor:"pointer" },
   sessionLayout:{ display:"grid", gridTemplateColumns:"240px 1fr", gap:20 },
+  sessionMobile:{ maxWidth:700, margin:"0 auto" },
+  sessionTopBar:{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:14, flexWrap:"wrap" },
+  sessionTabs:{ display:"flex", gap:0, marginBottom:16, borderRadius:8, overflow:"hidden", border:`1px solid #272727` },
+  sessionTabBtn:{ flex:1, background:"transparent", border:"none", color:"#888", padding:"11px 10px", fontFamily:"inherit", fontSize:11, fontWeight:700, letterSpacing:"0.1em", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 },
+  sessionTabActive:{ background:"rgba(232,255,59,0.12)", color:"#e8ff3b" },
+  tabBadge:{ background:"#e8ff3b", color:"#0a0a0a", borderRadius:"50%", width:18, height:18, display:"inline-flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700 },
+  pickerMobile:{ background:"#161616", border:`1px solid #272727`, borderRadius:12, padding:16 },
+  logMobile:{ },
+  catListH:{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:4 },
+  catBtnH:{ background:"transparent", border:`1px solid #272727`, color:"#888", padding:"6px 12px", borderRadius:20, cursor:"pointer", fontFamily:"inherit", fontSize:10 },
   picker:{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:16, height:"fit-content", position:"sticky", top:20 },
   sectionLabel:{ fontSize:9, letterSpacing:"0.25em", color:C.accent, marginBottom:9, fontWeight:700 },
   catList:{ display:"flex", flexDirection:"column", gap:3, marginBottom:10 },
@@ -932,7 +946,7 @@ const S = {
   finishBtn:{ background:C.accent, color:C.black, border:"none", borderRadius:7, padding:"10px 20px", fontFamily:"inherit", fontWeight:700, fontSize:11, letterSpacing:"0.08em", cursor:"pointer" },
   emptyLog:{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:240, color:C.muted, gap:10, fontSize:12 },
   exCards:{ display:"flex", flexDirection:"column", gap:12 },
-  exCard:{ background:C.dark, border:`1px solid ${C.border}`, borderRadius:9, padding:13 },
+  exCard:{ background:C.dark, border:`1px solid ${C.border}`, borderRadius:9, padding:13, overflow:"hidden" },
   exCardHeader:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 },
   exCardCat:{ fontSize:8, color:C.accent, letterSpacing:"0.18em", fontWeight:700 },
   exCardName:{ fontSize:14, fontWeight:600, marginTop:2 },
@@ -940,9 +954,9 @@ const S = {
   typeToggle:{ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"3px 7px", borderRadius:4, cursor:"pointer", fontFamily:"inherit", fontSize:9 },
   removeBtn:{ background:"transparent", border:`1px solid #ff464640`, color:C.red, padding:"3px 7px", borderRadius:4, cursor:"pointer", fontFamily:"inherit", fontSize:10 },
   setsHeader:{ display:"flex", gap:6, fontSize:9, color:C.muted, letterSpacing:"0.1em", marginBottom:5 },
-  setRow:{ display:"flex", gap:6, alignItems:"center", marginBottom:4 },
+  setRow:{ display:"flex", gap:6, alignItems:"flex-start", marginBottom:8 },
   setNum:{ flex:"0 0 34px", textAlign:"center", fontSize:11, color:C.muted, background:"#1e1e1e", borderRadius:4, padding:"6px 0" },
-  setInput:{ flex:1, background:"#1a1a1a", border:`1px solid ${C.border}`, borderRadius:4, color:C.text, fontFamily:"inherit", fontSize:13, padding:"6px 8px", textAlign:"center", outline:"none" },
+  setInput:{ flex:1, background:"#1a1a1a", border:`1px solid ${C.border}`, borderRadius:4, color:C.text, fontFamily:"inherit", fontSize:13, padding:"6px 8px", textAlign:"center", outline:"none", minWidth:0 },
   addSetBtn:{ background:"transparent", border:`1px dashed ${C.border}`, color:C.muted, padding:"6px", borderRadius:4, cursor:"pointer", fontFamily:"inherit", fontSize:10, width:"100%", marginTop:3 },
   reportWrap:{ maxWidth:680, margin:"0 auto" },
   reportCard:{ background:C.card, border:`1px solid ${C.border}`, borderRadius:14, padding:"28px 24px" },
